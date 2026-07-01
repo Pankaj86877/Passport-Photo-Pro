@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Automated Validation Test Suite</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .pass { color: #4ade80; }
+        .fail { color: #f87171; }
+        .header { font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; margin-top: 20px; color: #60a5fa;}
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Automated Validation Tests</h1>
+    <div id="results"></div>
+
+    <!-- Need to provide hidden DOM elements for app.js to initialize safely even if we bypass them -->
+    <div style="display:none">
+        <select id="examPreset"></select>
+        <input type="file" id="photoInput">
+        <div id="photoWorkspace"></div>
+        <img id="photoTarget">
+        <div id="photoResultArea"></div>
+        <img id="photoPreview">
+        <div id="photoStats"></div>
+        <div id="photoValidation"></div>
+        <button id="btnFixPhoto"></button>
+        <button id="btnChangePhoto"></button>
+        <button id="btnDownloadPhoto"></button>
+        <div id="photoCropperContainer"></div>
+
+        <input type="file" id="signatureInput">
+        <div id="signatureWorkspace"></div>
+        <img id="signatureTarget">
+        <div id="signatureResultArea"></div>
+        <img id="signaturePreview">
+        <div id="signatureStats"></div>
+        <div id="signatureValidation"></div>
+        <button id="btnFixSignature"></button>
+        <button id="btnChangeSignature"></button>
+        <button id="btnDownloadSignature"></button>
+
+        <div id="batchActions"></div>
+        <button id="btnDownloadPrintSheet"></button>
+    </div>
+
+    <!-- Required Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="app.js"></script>
+    <script src="test.js"></script>
+</body>
+</html>

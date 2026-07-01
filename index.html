@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassportPhotoPro - Verification Chamber</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Cropper.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="grid-overlay"></div>
+    
+    <nav class="navbar">
+        <div class="brand">PassportPhotoPro</div>
+        <label for="globalUpload" class="btn btn-outline" id="navUploadBtn">
+            [ INITIALIZE_UPLOAD ]
+            <input type="file" id="globalUpload" accept="image/jpeg, image/png, image/jpg" class="hidden-input">
+        </label>
+    </nav>
+
+    <main class="container">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Get exam-ready.<br><span class="cyan-text">Instantly verified.</span></h1>
+                <p>Pass strict digital specs for Indian government exams with our biometric verification engine. No more guesswork, no more rejected applications.</p>
+                <div class="hero-checks" id="liveChecks">
+                    <div class="check-item" id="checkDim"><span class="box"></span> Dimensions</div>
+                    <div class="check-item" id="checkSize"><span class="box"></span> File Size</div>
+                    <div class="check-item" id="checkBg"><span class="box"></span> Background</div>
+                    <div class="check-item" id="checkFace"><span class="box"></span> Face Ratio</div>
+                </div>
+                <label for="heroPhotoInput" class="btn btn-primary btn-large mt-2">
+                    INITIATE_SCAN //
+                    <input type="file" id="heroPhotoInput" accept="image/jpeg, image/png, image/jpg" class="hidden-input">
+                </label>
+            </div>
+            
+            <div class="hero-visual">
+                <div class="card-container" id="cardContainer">
+                    <div class="id-card" id="idCard">
+                        <div class="laser-scanner" id="laserScanner"></div>
+                        <div class="card-header">
+                            <span class="card-title">VERIFICATION_MODULE</span>
+                            <span class="card-id">ID: 0x9F4</span>
+                        </div>
+                        <div class="card-photo-area" id="cardPhotoArea">
+                            <!-- Placeholder image or uploaded image goes here -->
+                            <img src="sample_face.png" id="heroPhotoPlaceholder" alt="Sample Profile" class="placeholder-img">
+                        </div>
+                        <div class="card-data">
+                            <div class="data-row"><span>W:</span><span class="mono">200px</span></div>
+                            <div class="data-row"><span>H:</span><span class="mono">230px</span></div>
+                            <div class="data-row"><span>SIZE:</span><span class="mono">42 KB</span></div>
+                            <div class="barcode">|| | ||| | || | |||</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Presets Selection -->
+        <section class="presets-section">
+            <h2 class="section-title">SELECT_TARGET_PARAMETERS</h2>
+            <div class="presets-grid" id="presetsGrid">
+                <div class="preset-card active" data-preset="ssc">
+                    <h3>SSC</h3>
+                    <div class="preset-specs mono">20-50 KB<br>3.5 x 4.5 cm</div>
+                </div>
+                <div class="preset-card" data-preset="upsc">
+                    <h3>UPSC</h3>
+                    <div class="preset-specs mono">20-300 KB<br>350 x 350 px</div>
+                </div>
+                <div class="preset-card" data-preset="ibps">
+                    <h3>IBPS</h3>
+                    <div class="preset-specs mono">20-50 KB<br>4.5 x 3.5 cm</div>
+                </div>
+                <div class="preset-card" data-preset="rrb">
+                    <h3>RRB NTPC</h3>
+                    <div class="preset-specs mono">20-50 KB<br>3.5 x 4.5 cm</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Workspace (Hidden until upload) -->
+        <section class="workspace hidden" id="mainWorkspace">
+            <h2 class="section-title">CALIBRATION_MATRIX</h2>
+            <div class="modules">
+                <!-- Photo Module -->
+                <div class="module" id="photoModule">
+                    <div class="module-header">PHOTO_DATA</div>
+                    <div class="cropper-container" id="photoCropperContainer">
+                        <img id="photoTarget" src="" alt="Photo to crop">
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="btnFixPhoto">RUN_PROCESS</button>
+                    </div>
+
+                    <div class="result-area hidden" id="photoResultArea">
+                        <div class="preview-card">
+                            <img id="photoPreview" src="" alt="Photo result">
+                            <div class="stats mono" id="photoStats"></div>
+                        </div>
+                        <div class="validation-panel" id="photoValidation"></div>
+                        <button class="btn btn-success" id="btnDownloadPhoto" disabled>DOWNLOAD_ASSET</button>
+                    </div>
+                </div>
+
+                <!-- Signature Module -->
+                <div class="module" id="signatureModule">
+                    <div class="module-header">SIGNATURE_DATA</div>
+                    <div class="upload-area" id="signatureUploadArea">
+                        <input type="file" id="signatureInput" accept="image/jpeg, image/png, image/jpg" class="hidden-input">
+                        <div class="upload-placeholder">
+                            <p>[ SELECT SIGNATURE ]</p>
+                        </div>
+                    </div>
+
+                    <div class="cropper-workspace hidden" id="signatureWorkspace">
+                        <div class="cropper-container">
+                            <img id="signatureTarget" src="" alt="Signature to crop">
+                        </div>
+                        <div class="actions">
+                            <button class="btn btn-primary" id="btnFixSignature">RUN_PROCESS</button>
+                        </div>
+                    </div>
+
+                    <div class="result-area hidden" id="signatureResultArea">
+                        <div class="preview-card">
+                            <img id="signaturePreview" src="" alt="Signature result">
+                            <div class="stats mono" id="signatureStats"></div>
+                        </div>
+                        <div class="validation-panel" id="signatureValidation"></div>
+                        <button class="btn btn-success" id="btnDownloadSignature" disabled>DOWNLOAD_ASSET</button>
+                    </div>
+                </div>
+            </div>
+            <div class="batch-actions hidden" id="batchActions">
+                <button class="btn btn-primary btn-large mt-2" id="btnDownloadPrintSheet">GENERATE_A4_SHEET</button>
+            </div>
+        </section>
+
+        <!-- Hidden canvas for processing -->
+        <canvas id="processingCanvas" style="display:none;"></canvas>
+    </main>
+
+    <!-- Cropper.js Script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

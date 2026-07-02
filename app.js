@@ -1,7 +1,7 @@
 // Exam Presets Configuration
 const examPresets = {
     ssc: {
-        photo: { minKB: 20, maxKB: 50, width: 275, height: 354, ratio: 275 / 354 }, // ~3.5x4.5cm at 200DPI
+        photo: { minKB: 20, maxKB: 50, width: 275, height: 354, ratio: 275 / 354 }, 
         signature: { minKB: 10, maxKB: 20, width: 140, height: 60, ratio: 140 / 60 }
     },
     upsc: {
@@ -21,30 +21,53 @@ const examPresets = {
 let currentPreset = 'ssc';
 let croppers = { photo: null, signature: null };
 let finalBlobs = { photo: null, signature: null };
+let videoStreams = { photo: null, signature: null };
 
 // DOM Elements
 const elements = {
     presetCards: document.querySelectorAll('.preset-card'),
     globalUpload: document.getElementById('globalUpload'),
-    heroUpload: document.getElementById('heroPhotoInput'),
     hero: document.querySelector('.hero'),
     cardContainer: document.getElementById('cardContainer'),
     idCard: document.getElementById('idCard'),
     mainWorkspace: document.getElementById('mainWorkspace'),
     photo: {
-        input: document.getElementById('heroPhotoInput'), // Can be overriden
-        workspace: document.getElementById('photoModule'),
+        btnCamera: document.getElementById('btnHeroCamera'),
+        input: document.getElementById('heroPhotoInput'),
+        video: document.getElementById('heroVideo'),
+        guides: document.getElementById('heroGuides'),
+        controls: document.getElementById('heroCameraControls'),
+        btnShutter: document.getElementById('btnHeroShutter'),
+        error: document.getElementById('heroCameraError'),
+        placeholder: document.getElementById('heroPhotoPlaceholder'),
+        workspace: document.getElementById('photoWorkspace'),
         target: document.getElementById('photoTarget'),
         resultArea: document.getElementById('photoResultArea'),
         preview: document.getElementById('photoPreview'),
         stats: document.getElementById('photoStats'),
         validation: document.getElementById('photoValidation'),
         btnFix: document.getElementById('btnFixPhoto'),
+        btnRetake: document.getElementById('btnRetakePhoto'),
         btnDownload: document.getElementById('btnDownloadPhoto'),
-        cropperContainer: document.getElementById('photoCropperContainer')
+        sliders: {
+            rot: document.getElementById('photoRotation'),
+            bri: document.getElementById('photoBrightness'),
+            con: document.getElementById('photoContrast'),
+            rotVal: document.getElementById('photoRotVal'),
+            briVal: document.getElementById('photoBriVal'),
+            conVal: document.getElementById('photoConVal')
+        }
     },
     signature: {
+        btnCamera: document.getElementById('btnSigCamera'),
         input: document.getElementById('signatureInput'),
+        video: document.getElementById('sigVideo'),
+        guides: document.getElementById('sigGuides'),
+        uploadArea: document.getElementById('signatureUploadArea'),
+        cameraWorkspace: document.getElementById('signatureCameraWorkspace'),
+        btnShutter: document.getElementById('btnSigShutter'),
+        btnCancelCam: document.getElementById('btnCancelSigCam'),
+        error: document.getElementById('sigCameraError'),
         workspace: document.getElementById('signatureWorkspace'),
         target: document.getElementById('signatureTarget'),
         resultArea: document.getElementById('signatureResultArea'),
@@ -52,7 +75,16 @@ const elements = {
         stats: document.getElementById('signatureStats'),
         validation: document.getElementById('signatureValidation'),
         btnFix: document.getElementById('btnFixSignature'),
-        btnDownload: document.getElementById('btnDownloadSignature')
+        btnRetake: document.getElementById('btnRetakeSignature'),
+        btnDownload: document.getElementById('btnDownloadSignature'),
+        sliders: {
+            rot: document.getElementById('sigRotation'),
+            bri: document.getElementById('sigBrightness'),
+            con: document.getElementById('sigContrast'),
+            rotVal: document.getElementById('sigRotVal'),
+            briVal: document.getElementById('sigBriVal'),
+            conVal: document.getElementById('sigConVal')
+        }
     },
     batch: {
         section: document.getElementById('batchActions'),
@@ -79,7 +111,7 @@ if (elements.hero && elements.cardContainer) {
     });
 }
 
-// Event Listeners
+// Preset Selection
 if (elements.presetCards.length > 0) {
     elements.presetCards.forEach(card => {
         card.addEventListener('click', () => {
@@ -91,56 +123,151 @@ if (elements.presetCards.length > 0) {
             if (croppers.signature) croppers.signature.setAspectRatio(examPresets[currentPreset].signature.ratio);
         });
     });
+}
 
-    // Upload Triggers
-    const handleInitialUpload = (e) => {
-        // Transition to workspace
-        document.getElementById('idCard').classList.add('scanning');
+// --- Camera Logic ---
+async function startCamera(type) {
+    const isPhoto = type === 'photo';
+    const constraints = {
+        video: {
+            facingMode: isPhoto ? 'user' : 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 1280 }
+        }
+    };
+
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error("Camera API not supported in this browser.");
+        }
+        
+        // HTTPS check
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+            throw new Error("Camera access requires a secure HTTPS connection.");
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        videoStreams[type] = stream;
+        elements[type].video.srcObject = stream;
+        
+        elements[type].error.classList.add('hidden');
+        elements[type].video.classList.remove('hidden');
+        elements[type].guides.classList.remove('hidden');
+
+        if (isPhoto) {
+            elements.photo.placeholder.classList.add('hidden');
+            elements.photo.controls.classList.remove('hidden');
+        } else {
+            elements.signature.uploadArea.classList.add('hidden');
+            elements.signature.cameraWorkspace.classList.remove('hidden');
+        }
+
+    } catch (err) {
+        console.error(err);
+        elements[type].error.innerHTML = `Camera access denied or unavailable. <br><small>(${err.message})</small><br>Please check browser permissions or use "UPLOAD_FILE".`;
+        elements[type].error.classList.remove('hidden');
+    }
+}
+
+function stopCamera(type) {
+    if (videoStreams[type]) {
+        videoStreams[type].getTracks().forEach(track => track.stop());
+        videoStreams[type] = null;
+    }
+}
+
+function captureFrame(type) {
+    const video = elements[type].video;
+    if (!video.videoWidth) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw raw frame (un-mirrored, true orientation)
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    stopCamera(type);
+    
+    // Transition UI
+    if (type === 'photo') {
+        elements.photo.video.classList.add('hidden');
+        elements.photo.guides.classList.add('hidden');
+        elements.photo.controls.classList.add('hidden');
+        elements.photo.placeholder.classList.remove('hidden');
+        elements.photo.placeholder.src = canvas.toDataURL('image/jpeg');
+        elements.photo.placeholder.style.filter = 'none';
+        
+        elements.idCard.classList.add('scanning');
         setTimeout(() => {
             elements.mainWorkspace.classList.remove('hidden');
             elements.mainWorkspace.scrollIntoView({ behavior: 'smooth' });
-            handleUpload(e, 'photo');
-        }, 1500); // Simulate scan delay before jumping to workspace
-    };
-
-    if (elements.globalUpload) elements.globalUpload.addEventListener('change', handleInitialUpload);
-    if (elements.heroUpload) elements.heroUpload.addEventListener('change', handleInitialUpload);
-
-    elements.photo.btnFix.addEventListener('click', () => processImage('photo'));
-    elements.photo.btnDownload.addEventListener('click', () => downloadResult('photo'));
-
-    if (elements.signature.input) elements.signature.input.addEventListener('change', (e) => handleUpload(e, 'signature'));
-    elements.signature.btnFix.addEventListener('click', () => processImage('signature'));
-    elements.signature.btnDownload.addEventListener('click', () => downloadResult('signature'));
-
-    elements.batch.btnDownloadPrint.addEventListener('click', generatePrintSheet);
+            loadToCropper(type, canvas.toDataURL('image/jpeg'));
+        }, 1500);
+    } else {
+        elements.signature.cameraWorkspace.classList.add('hidden');
+        loadToCropper(type, canvas.toDataURL('image/jpeg'));
+    }
 }
 
+function loadToCropper(type, dataUrl) {
+    elements[type].target.src = dataUrl;
+    elements[type].workspace.classList.remove('hidden');
+    
+    // Reset sliders
+    elements[type].sliders.rot.value = 0;
+    elements[type].sliders.bri.value = 100;
+    elements[type].sliders.con.value = 100;
+    updateSliderLabels(type);
+
+    initCropper(type);
+}
+
+// --- Upload Logic ---
 function handleUpload(event, type) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
-        elements[type].target.src = e.target.result;
-        
-        if (type === 'signature') {
-            elements.signature.workspace.classList.remove('hidden');
-            document.getElementById('signatureUploadArea').classList.add('hidden');
+        if (type === 'photo') {
+            elements.photo.placeholder.src = e.target.result;
+            elements.photo.placeholder.style.filter = 'none';
+            elements.idCard.classList.add('scanning');
+            setTimeout(() => {
+                elements.mainWorkspace.classList.remove('hidden');
+                elements.mainWorkspace.scrollIntoView({ behavior: 'smooth' });
+                loadToCropper(type, e.target.result);
+            }, 1500);
         } else {
-            // update hero photo placeholder for visual effect
-            const placeholder = document.getElementById('heroPhotoPlaceholder');
-            if (placeholder) {
-                placeholder.src = e.target.result;
-                placeholder.style.filter = 'none';
-            }
+            elements.signature.uploadArea.classList.add('hidden');
+            loadToCropper(type, e.target.result);
         }
-
-        initCropper(type);
     };
     reader.readAsDataURL(file);
 }
 
+// Bind Camera & Upload Events
+if (elements.photo.btnCamera) {
+    elements.photo.btnCamera.addEventListener('click', () => startCamera('photo'));
+    elements.photo.btnShutter.addEventListener('click', () => captureFrame('photo'));
+    elements.photo.input.addEventListener('change', (e) => handleUpload(e, 'photo'));
+    if (elements.globalUpload) elements.globalUpload.addEventListener('change', (e) => handleUpload(e, 'photo'));
+}
+
+if (elements.signature.btnCamera) {
+    elements.signature.btnCamera.addEventListener('click', () => startCamera('signature'));
+    elements.signature.btnShutter.addEventListener('click', () => captureFrame('signature'));
+    elements.signature.btnCancelCam.addEventListener('click', () => {
+        stopCamera('signature');
+        elements.signature.cameraWorkspace.classList.add('hidden');
+        elements.signature.uploadArea.classList.remove('hidden');
+    });
+    elements.signature.input.addEventListener('change', (e) => handleUpload(e, 'signature'));
+}
+
+// --- Adjustments & Cropper Logic ---
 function initCropper(type) {
     if (croppers[type]) {
         croppers[type].destroy();
@@ -157,6 +284,27 @@ function initCropper(type) {
     });
 }
 
+function updateSliderLabels(type) {
+    const s = elements[type].sliders;
+    s.rotVal.textContent = s.rot.value + '°';
+    s.briVal.textContent = s.bri.value + '%';
+    s.conVal.textContent = s.con.value + '%';
+}
+
+function setupSliders(type) {
+    const s = elements[type].sliders;
+    s.rot.addEventListener('input', () => {
+        updateSliderLabels(type);
+        if (croppers[type]) croppers[type].rotateTo(parseFloat(s.rot.value));
+    });
+    s.bri.addEventListener('input', () => updateSliderLabels(type));
+    s.con.addEventListener('input', () => updateSliderLabels(type));
+}
+
+setupSliders('photo');
+setupSliders('signature');
+
+// --- Process & Compress ---
 async function processImage(type) {
     if (!croppers[type]) return;
 
@@ -164,21 +312,30 @@ async function processImage(type) {
     elements[type].btnFix.textContent = 'PROCESSING...';
 
     const rules = examPresets[currentPreset][type];
-    const canvas = croppers[type].getCroppedCanvas({
+    const cropCanvas = croppers[type].getCroppedCanvas({
         width: rules.width,
         height: rules.height,
         imageSmoothingEnabled: true,
         imageSmoothingQuality: 'high',
     });
 
+    // Apply Brightness & Contrast via temp canvas
+    const bri = elements[type].sliders.bri.value;
+    const con = elements[type].sliders.con.value;
+    
+    const filterCanvas = document.createElement('canvas');
+    filterCanvas.width = cropCanvas.width;
+    filterCanvas.height = cropCanvas.height;
+    const ctx = filterCanvas.getContext('2d');
+    
+    ctx.filter = `brightness(${bri}%) contrast(${con}%)`;
+    ctx.drawImage(cropCanvas, 0, 0);
+
     try {
-        const resultBlob = await compressToTarget(canvas, rules.minKB, rules.maxKB, type);
+        const resultBlob = await compressToTarget(filterCanvas, rules.minKB, rules.maxKB, type);
         finalBlobs[type] = resultBlob;
         displayResult(type, resultBlob, rules);
-        
-        // Trigger live checkmarks for hero visual
         if (type === 'photo') animateHeroChecks();
-
     } catch (error) {
         console.error("Compression failed:", error);
         alert("Could not compress image to target size. Please try a different image.");
@@ -194,7 +351,7 @@ function animateHeroChecks() {
         setTimeout(() => {
             const el = document.getElementById(id);
             if (el) el.classList.add('active');
-        }, index * 400); // Sequence pop-in
+        }, index * 400);
     });
 }
 
@@ -272,20 +429,32 @@ function renderValidation(type, validations) {
     container.innerHTML = '';
     
     let allPassed = true;
-    
     validations.forEach(v => {
         if (!v.passed) allPassed = false;
         const item = document.createElement('div');
         item.className = 'validation-item';
-        item.innerHTML = `
-            <span>${v.text}</span>
-            <span class="${v.passed ? 'val-pass' : 'val-fail'}">[ ${v.passed ? 'PASS' : 'FAIL'} ]</span>
-        `;
+        item.innerHTML = `<span>${v.text}</span><span class="${v.passed ? 'val-pass' : 'val-fail'}">[ ${v.passed ? 'PASS' : 'FAIL'} ]</span>`;
         container.appendChild(item);
     });
-
     elements[type].btnDownload.disabled = !allPassed;
 }
+
+// Action Buttons
+if(elements.photo.btnRetake) elements.photo.btnRetake.addEventListener('click', () => {
+    elements.photo.workspace.classList.add('hidden');
+    elements.photo.resultArea.classList.add('hidden');
+    startCamera('photo'); // or scroll back to hero
+});
+if(elements.photo.btnFix) elements.photo.btnFix.addEventListener('click', () => processImage('photo'));
+if(elements.photo.btnDownload) elements.photo.btnDownload.addEventListener('click', () => downloadResult('photo'));
+
+if(elements.signature.btnRetake) elements.signature.btnRetake.addEventListener('click', () => {
+    elements.signature.workspace.classList.add('hidden');
+    elements.signature.resultArea.classList.add('hidden');
+    startCamera('signature');
+});
+if(elements.signature.btnFix) elements.signature.btnFix.addEventListener('click', () => processImage('signature'));
+if(elements.signature.btnDownload) elements.signature.btnDownload.addEventListener('click', () => downloadResult('signature'));
 
 function downloadResult(type) {
     if (!finalBlobs[type]) return;
@@ -307,7 +476,8 @@ function checkBatchStatus() {
     }
 }
 
-// Generate A4 Sheet (approx 2480 x 3508 px at 300 DPI)
+if(elements.batch.btnDownloadPrint) elements.batch.btnDownloadPrint.addEventListener('click', generatePrintSheet);
+
 function generatePrintSheet() {
     if (!finalBlobs.photo || !finalBlobs.signature) return;
 
@@ -316,7 +486,6 @@ function generatePrintSheet() {
 
     const canvas = document.getElementById('processingCanvas');
     const ctx = canvas.getContext('2d');
-    
     canvas.width = 2480;
     canvas.height = 3508;
     ctx.fillStyle = '#ffffff';
@@ -356,8 +525,4 @@ function generatePrintSheet() {
 }
 
 // Expose core functions for testing
-window.ResizerApp = {
-    compressToTarget,
-    validateResult,
-    examPresets
-};
+window.ResizerApp = { compressToTarget, validateResult, examPresets };

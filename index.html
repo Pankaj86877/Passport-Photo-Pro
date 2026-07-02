@@ -17,10 +17,10 @@
     
     <nav class="navbar">
         <div class="brand">PassportPhotoPro</div>
-        <label for="globalUpload" class="btn btn-outline" id="navUploadBtn">
-            [ INITIALIZE_UPLOAD ]
-            <input type="file" id="globalUpload" accept="image/jpeg, image/png, image/jpg" class="hidden-input">
-        </label>
+        <div class="nav-actions">
+            <!-- Privacy Reassurance -->
+            <span class="privacy-note mono">Local processing only. No cloud upload.</span>
+        </div>
     </nav>
 
     <main class="container">
@@ -35,10 +35,18 @@
                     <div class="check-item" id="checkBg"><span class="box"></span> Background</div>
                     <div class="check-item" id="checkFace"><span class="box"></span> Face Ratio</div>
                 </div>
-                <label for="heroPhotoInput" class="btn btn-primary btn-large mt-2">
-                    INITIATE_SCAN //
-                    <input type="file" id="heroPhotoInput" accept="image/jpeg, image/png, image/jpg" class="hidden-input">
-                </label>
+                
+                <!-- Unified Entry UI -->
+                <div class="entry-choices mt-2">
+                    <button class="btn btn-primary" id="btnHeroCamera">
+                        SCAN_CAMERA //
+                    </button>
+                    <label for="heroPhotoInput" class="btn btn-outline">
+                        UPLOAD_FILE //
+                        <input type="file" id="heroPhotoInput" accept="image/jpeg, image/png, image/jpg" class="hidden-input">
+                    </label>
+                </div>
+                <div id="heroCameraError" class="camera-error mono hidden"></div>
             </div>
             
             <div class="hero-visual">
@@ -49,11 +57,27 @@
                             <span class="card-title">VERIFICATION_MODULE</span>
                             <span class="card-id">ID: 0x9F4</span>
                         </div>
+                        
                         <div class="card-photo-area" id="cardPhotoArea">
-                            <!-- Placeholder image or uploaded image goes here -->
+                            <!-- Live Camera Feed (Hidden by default) -->
+                            <video id="heroVideo" autoplay playsinline class="hidden front-cam"></video>
+                            <div id="heroGuides" class="camera-guides hidden">
+                                <div class="face-oval"></div>
+                                <div class="eye-line"></div>
+                                <div class="cam-hint mono">Align face in oval</div>
+                                <div class="countdown" id="heroCountdown"></div>
+                            </div>
+                            
+                            <!-- Placeholder image or uploaded image -->
                             <img src="sample_face.png" id="heroPhotoPlaceholder" alt="Sample Profile" class="placeholder-img">
                         </div>
-                        <div class="card-data">
+                        
+                        <!-- Camera Shutter Controls (Hidden by default) -->
+                        <div class="camera-controls hidden" id="heroCameraControls">
+                            <button class="btn btn-primary" id="btnHeroShutter">CAPTURE</button>
+                        </div>
+
+                        <div class="card-data" id="heroCardData">
                             <div class="data-row"><span>W:</span><span class="mono">200px</span></div>
                             <div class="data-row"><span>H:</span><span class="mono">230px</span></div>
                             <div class="data-row"><span>SIZE:</span><span class="mono">42 KB</span></div>
@@ -87,18 +111,39 @@
             </div>
         </section>
 
-        <!-- Workspace (Hidden until upload) -->
+        <!-- Workspace (Hidden until upload/capture) -->
         <section class="workspace hidden" id="mainWorkspace">
             <h2 class="section-title">CALIBRATION_MATRIX</h2>
             <div class="modules">
                 <!-- Photo Module -->
                 <div class="module" id="photoModule">
                     <div class="module-header">PHOTO_DATA</div>
-                    <div class="cropper-container" id="photoCropperContainer">
-                        <img id="photoTarget" src="" alt="Photo to crop">
-                    </div>
-                    <div class="actions">
-                        <button class="btn btn-primary" id="btnFixPhoto">RUN_PROCESS</button>
+                    
+                    <div class="cropper-workspace" id="photoWorkspace">
+                        <div class="cropper-container" id="photoCropperContainer">
+                            <img id="photoTarget" src="" alt="Photo to crop">
+                        </div>
+                        
+                        <!-- Post-Capture Adjustments -->
+                        <div class="adjustments-panel">
+                            <div class="slider-group">
+                                <label class="mono">ROTATION: <span id="photoRotVal">0°</span></label>
+                                <input type="range" id="photoRotation" min="-45" max="45" value="0">
+                            </div>
+                            <div class="slider-group">
+                                <label class="mono">BRIGHTNESS: <span id="photoBriVal">100%</span></label>
+                                <input type="range" id="photoBrightness" min="50" max="150" value="100">
+                            </div>
+                            <div class="slider-group">
+                                <label class="mono">CONTRAST: <span id="photoConVal">100%</span></label>
+                                <input type="range" id="photoContrast" min="50" max="150" value="100">
+                            </div>
+                        </div>
+
+                        <div class="actions">
+                            <button class="btn btn-outline" id="btnRetakePhoto">RETAKE</button>
+                            <button class="btn btn-primary" id="btnFixPhoto">RUN_PROCESS</button>
+                        </div>
                     </div>
 
                     <div class="result-area hidden" id="photoResultArea">
@@ -114,18 +159,58 @@
                 <!-- Signature Module -->
                 <div class="module" id="signatureModule">
                     <div class="module-header">SIGNATURE_DATA</div>
+                    
+                    <!-- Entry choices for signature -->
                     <div class="upload-area" id="signatureUploadArea">
-                        <input type="file" id="signatureInput" accept="image/jpeg, image/png, image/jpg" class="hidden-input">
-                        <div class="upload-placeholder">
-                            <p>[ SELECT SIGNATURE ]</p>
+                        <div class="entry-choices">
+                            <button class="btn btn-primary" id="btnSigCamera">SCAN_CAMERA</button>
+                            <label for="signatureInput" class="btn btn-outline">
+                                UPLOAD_FILE
+                                <input type="file" id="signatureInput" accept="image/jpeg, image/png, image/jpg" class="hidden-input">
+                            </label>
+                        </div>
+                        <div id="sigCameraError" class="camera-error mono hidden"></div>
+                    </div>
+
+                    <!-- Live Camera Feed (Signature) -->
+                    <div class="camera-workspace hidden" id="signatureCameraWorkspace">
+                        <div class="cropper-container relative">
+                            <video id="sigVideo" autoplay playsinline class="back-cam"></video>
+                            <div id="sigGuides" class="camera-guides hidden">
+                                <div class="sig-rect"></div>
+                                <div class="cam-hint mono">Fit signature in box</div>
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn btn-outline" id="btnCancelSigCam">CANCEL</button>
+                            <button class="btn btn-primary" id="btnSigShutter">CAPTURE</button>
                         </div>
                     </div>
 
+                    <!-- Adjustment Workspace (Signature) -->
                     <div class="cropper-workspace hidden" id="signatureWorkspace">
                         <div class="cropper-container">
                             <img id="signatureTarget" src="" alt="Signature to crop">
                         </div>
+                        
+                        <!-- Post-Capture Adjustments -->
+                        <div class="adjustments-panel">
+                            <div class="slider-group">
+                                <label class="mono">ROTATION: <span id="sigRotVal">0°</span></label>
+                                <input type="range" id="sigRotation" min="-45" max="45" value="0">
+                            </div>
+                            <div class="slider-group">
+                                <label class="mono">BRIGHTNESS: <span id="sigBriVal">100%</span></label>
+                                <input type="range" id="sigBrightness" min="50" max="150" value="100">
+                            </div>
+                            <div class="slider-group">
+                                <label class="mono">CONTRAST: <span id="sigConVal">100%</span></label>
+                                <input type="range" id="sigContrast" min="50" max="150" value="100">
+                            </div>
+                        </div>
+
                         <div class="actions">
+                            <button class="btn btn-outline" id="btnRetakeSignature">RETAKE</button>
                             <button class="btn btn-primary" id="btnFixSignature">RUN_PROCESS</button>
                         </div>
                     </div>

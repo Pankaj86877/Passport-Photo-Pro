@@ -140,7 +140,48 @@
                             </div>
                         </div>
 
-                        <div class="actions">
+                        <!-- Optional Background Remover -->
+                        <div class="bg-tool-entry mt-2">
+                            <button class="btn btn-outline" id="btnToggleBgTool">
+                                <span class="spinner hidden" id="bgToolSpinner"></span>
+                                FIX_BACKGROUND //
+                            </button>
+                            <div class="bg-hint mono" id="bgHintText">Only use this if your background isn't plain white.</div>
+                        </div>
+
+                        <!-- Background Editor Panel (Hidden by default) -->
+                        <div class="bg-editor-panel hidden" id="bgEditorPanel">
+                            <div class="bg-canvas-container">
+                                <canvas id="bgEditorCanvas"></canvas>
+                            </div>
+                            
+                            <div class="bg-controls">
+                                <label class="mono">SELECT_COLOR:</label>
+                                <div class="swatch-row">
+                                    <div class="swatch active" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ccc;"></div>
+                                    <div class="swatch" data-color="#EAF2FF" style="background: #EAF2FF;"></div>
+                                    <div class="swatch" data-color="#ADD8E6" style="background: #ADD8E6;"></div>
+                                    <div class="swatch" data-color="#FF5470" style="background: #FF5470;"></div>
+                                    <div class="swatch" data-color="#AAAAAA" style="background: #AAAAAA;"></div>
+                                </div>
+                                
+                                <div class="brush-controls mt-2">
+                                    <label class="mono">MANUAL_BRUSH:</label>
+                                    <div class="brush-modes">
+                                        <button class="btn-small active" id="btnBrushErase">ERASE</button>
+                                        <button class="btn-small" id="btnBrushRestore">RESTORE</button>
+                                    </div>
+                                    <input type="range" id="brushSize" min="5" max="50" value="20" class="mt-1">
+                                </div>
+                            </div>
+
+                            <div class="bg-actions mt-2">
+                                <button class="btn btn-outline" id="btnCancelBg">CANCEL</button>
+                                <button class="btn btn-primary" id="btnApplyBg">APPLY_CHANGES</button>
+                            </div>
+                        </div>
+
+                        <div class="actions mt-2">
                             <button class="btn btn-outline" id="btnRetakePhoto">RETAKE</button>
                             <button class="btn btn-primary" id="btnFixPhoto">RUN_PROCESS</button>
                         </div>

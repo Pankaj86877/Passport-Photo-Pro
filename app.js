@@ -89,6 +89,19 @@ const elements = {
     batch: {
         section: document.getElementById('batchActions'),
         btnDownloadPrint: document.getElementById('btnDownloadPrintSheet')
+    },
+    bgTool: {
+        btnToggle: document.getElementById('btnToggleBgTool'),
+        spinner: document.getElementById('bgToolSpinner'),
+        hint: document.getElementById('bgHintText'),
+        panel: document.getElementById('bgEditorPanel'),
+        canvas: document.getElementById('bgEditorCanvas'),
+        swatches: document.querySelectorAll('.swatch'),
+        btnErase: document.getElementById('btnBrushErase'),
+        btnRestore: document.getElementById('btnBrushRestore'),
+        brushSize: document.getElementById('brushSize'),
+        btnCancel: document.getElementById('btnCancelBg'),
+        btnApply: document.getElementById('btnApplyBg')
     }
 };
 
@@ -121,6 +134,13 @@ if (elements.presetCards.length > 0) {
             
             if (croppers.photo) croppers.photo.setAspectRatio(examPresets[currentPreset].photo.ratio);
             if (croppers.signature) croppers.signature.setAspectRatio(examPresets[currentPreset].signature.ratio);
+            
+            // Update background hint
+            if (elements.bgTool.hint) {
+                if (currentPreset === 'ssc') elements.bgTool.hint.textContent = "SSC requires a white or light background.";
+                else if (currentPreset === 'upsc') elements.bgTool.hint.textContent = "UPSC requires a white background.";
+                else elements.bgTool.hint.textContent = "Only use this if your background isn't plain white.";
+            }
         });
     });
 }
@@ -326,13 +346,21 @@ async function processImage(type) {
     const filterCanvas = document.createElement('canvas');
     filterCanvas.width = cropCanvas.width;
     filterCanvas.height = cropCanvas.height;
-    const ctx = filterCanvas.getContext('2d');
-    
-    ctx.filter = `brightness(${bri}%) contrast(${con}%)`;
-    ctx.drawImage(cropCanvas, 0, 0);
+    // Apply Background Replacement (if active)
+    let finalSourceCanvas = filterCanvas;
+    if (bgState.isActive && bgState.finalCompositedCanvas) {
+        // Draw the background composed image instead, applying brightness/contrast to it first
+        const bgFilterCanvas = document.createElement('canvas');
+        bgFilterCanvas.width = bgState.finalCompositedCanvas.width;
+        bgFilterCanvas.height = bgState.finalCompositedCanvas.height;
+        const bgCtx = bgFilterCanvas.getContext('2d');
+        bgCtx.filter = `brightness(${bri}%) contrast(${con}%)`;
+        bgCtx.drawImage(bgState.finalCompositedCanvas, 0, 0);
+        finalSourceCanvas = bgFilterCanvas;
+    }
 
     try {
-        const resultBlob = await compressToTarget(filterCanvas, rules.minKB, rules.maxKB, type);
+        const resultBlob = await compressToTarget(finalSourceCanvas, rules.minKB, rules.maxKB, type);
         finalBlobs[type] = resultBlob;
         displayResult(type, resultBlob, rules);
         if (type === 'photo') animateHeroChecks();
@@ -522,6 +550,227 @@ function generatePrintSheet() {
             elements.batch.btnDownloadPrint.disabled = false;
         }, 'image/jpeg', 0.95);
     });
+}
+
+// --- Optional Background Remover Module ---
+let bgState = {
+    isActive: false,
+    modelLoaded: false,
+    segmentation: null,
+    sourceCanvas: null,
+    maskCanvas: null,
+    finalCompositedCanvas: null,
+    currentColor: '#FFFFFF',
+    isDrawing: false,
+    brushMode: 'erase', // 'erase' or 'restore'
+    originalImageData: null
+};
+
+if (elements.bgTool.btnToggle) {
+    elements.bgTool.btnToggle.addEventListener('click', async () => {
+        // If already active, toggle it off
+        if (bgState.isActive || !elements.bgTool.panel.classList.contains('hidden')) {
+            elements.bgTool.panel.classList.add('hidden');
+            return;
+        }
+
+        elements.bgTool.spinner.classList.remove('hidden');
+        elements.bgTool.btnToggle.disabled = true;
+
+        try {
+            await loadSegmentationModel();
+            await processBackgroundRemoval();
+            elements.bgTool.panel.classList.remove('hidden');
+        } catch (e) {
+            console.error("Background removal failed:", e);
+            alert("Failed to load background removal tool.");
+        } finally {
+            elements.bgTool.spinner.classList.add('hidden');
+            elements.bgTool.btnToggle.disabled = false;
+        }
+    });
+
+    elements.bgTool.swatches.forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            elements.bgTool.swatches.forEach(s => s.classList.remove('active'));
+            swatch.classList.add('active');
+            bgState.currentColor = swatch.dataset.color;
+            renderBgEditor();
+        });
+    });
+
+    elements.bgTool.btnCancel.addEventListener('click', () => {
+        bgState.isActive = false;
+        bgState.finalCompositedCanvas = null;
+        elements.bgTool.panel.classList.add('hidden');
+    });
+
+    elements.bgTool.btnApply.addEventListener('click', () => {
+        bgState.isActive = true;
+        // The final composited canvas is saved and will be used by processImage()
+        elements.bgTool.panel.classList.add('hidden');
+        elements.bgTool.btnToggle.innerHTML = `FIX_BACKGROUND // <span class="val-pass">[ APPLIED ]</span>`;
+    });
+
+    // Brush Controls
+    elements.bgTool.btnErase.addEventListener('click', () => {
+        bgState.brushMode = 'erase';
+        elements.bgTool.btnErase.classList.add('active');
+        elements.bgTool.btnRestore.classList.remove('active');
+    });
+    elements.bgTool.btnRestore.addEventListener('click', () => {
+        bgState.brushMode = 'restore';
+        elements.bgTool.btnRestore.classList.add('active');
+        elements.bgTool.btnErase.classList.remove('active');
+    });
+
+    // Canvas Drawing
+    const canvas = elements.bgTool.canvas;
+    canvas.addEventListener('pointerdown', (e) => {
+        bgState.isDrawing = true;
+        drawBrush(e);
+    });
+    canvas.addEventListener('pointermove', (e) => {
+        if (!bgState.isDrawing) return;
+        drawBrush(e);
+    });
+    window.addEventListener('pointerup', () => {
+        bgState.isDrawing = false;
+    });
+}
+
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+    });
+}
+
+async function loadSegmentationModel() {
+    if (bgState.modelLoaded) return;
+    
+    // Load MediaPipe scripts dynamically
+    await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js');
+    
+    bgState.segmentation = new SelfieSegmentation({ locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+    }});
+    
+    bgState.segmentation.setOptions({
+        modelSelection: 1, // 1 is landscape (faster), 0 is general
+    });
+
+    bgState.segmentation.onResults(onSegmentationResults);
+    bgState.modelLoaded = true;
+}
+
+async function processBackgroundRemoval() {
+    // 1. Get current crop
+    if (!croppers.photo) return;
+    const rules = examPresets[currentPreset].photo;
+    bgState.sourceCanvas = croppers.photo.getCroppedCanvas({
+        width: rules.width,
+        height: rules.height
+    });
+
+    // 2. Setup editor canvas dimensions
+    elements.bgTool.canvas.width = bgState.sourceCanvas.width;
+    elements.bgTool.canvas.height = bgState.sourceCanvas.height;
+    
+    // 3. Send to MediaPipe
+    await bgState.segmentation.send({ image: bgState.sourceCanvas });
+}
+
+function onSegmentationResults(results) {
+    // MediaPipe returns a segmentation mask
+    // We will save this mask into our maskCanvas
+    if (!bgState.maskCanvas) {
+        bgState.maskCanvas = document.createElement('canvas');
+    }
+    bgState.maskCanvas.width = results.segmentationMask.width;
+    bgState.maskCanvas.height = results.segmentationMask.height;
+    
+    const mCtx = bgState.maskCanvas.getContext('2d');
+    mCtx.clearRect(0, 0, bgState.maskCanvas.width, bgState.maskCanvas.height);
+    mCtx.drawImage(results.segmentationMask, 0, 0);
+    
+    renderBgEditor();
+}
+
+function renderBgEditor() {
+    if (!bgState.sourceCanvas || !bgState.maskCanvas) return;
+    
+    const canvas = elements.bgTool.canvas;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // 1. Draw solid background color
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = bgState.currentColor;
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. We need to extract the person using the maskCanvas
+    // Create a temporary canvas for the person cutout
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const tCtx = tempCanvas.getContext('2d');
+    
+    // Draw the mask
+    tCtx.drawImage(bgState.maskCanvas, 0, 0, width, height);
+    // Draw the original image but only where the mask is solid (source-in)
+    tCtx.globalCompositeOperation = 'source-in';
+    tCtx.drawImage(bgState.sourceCanvas, 0, 0, width, height);
+
+    // 3. Draw the extracted person over the background
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(tempCanvas, 0, 0);
+
+    // Save final composited result to bgState
+    if (!bgState.finalCompositedCanvas) {
+        bgState.finalCompositedCanvas = document.createElement('canvas');
+    }
+    bgState.finalCompositedCanvas.width = width;
+    bgState.finalCompositedCanvas.height = height;
+    const fCtx = bgState.finalCompositedCanvas.getContext('2d');
+    fCtx.drawImage(canvas, 0, 0);
+}
+
+function drawBrush(e) {
+    const canvas = elements.bgTool.canvas;
+    const rect = canvas.getBoundingClientRect();
+    // Calculate scale between displayed CSS size and actual canvas pixel size
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    const radius = parseFloat(elements.bgTool.brushSize.value);
+
+    const mCtx = bgState.maskCanvas.getContext('2d');
+    
+    if (bgState.brushMode === 'erase') {
+        // Erase the mask (make person transparent)
+        mCtx.globalCompositeOperation = 'destination-out';
+        mCtx.fillStyle = 'rgba(0,0,0,1)';
+        mCtx.beginPath();
+        mCtx.arc(x, y, radius, 0, Math.PI * 2);
+        mCtx.fill();
+    } else {
+        // Restore the mask (make person opaque)
+        mCtx.globalCompositeOperation = 'source-over';
+        mCtx.fillStyle = 'rgba(255,255,255,1)';
+        mCtx.beginPath();
+        mCtx.arc(x, y, radius, 0, Math.PI * 2);
+        mCtx.fill();
+    }
+    
+    // Re-render
+    renderBgEditor();
 }
 
 // Expose core functions for testing

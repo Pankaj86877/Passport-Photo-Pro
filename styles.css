@@ -653,3 +653,110 @@ input[type=range]::-webkit-slider-thumb {
     box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
 }
 
+/* Background Tool Additions */
+.bg-tool-entry {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 1rem;
+}
+
+.bg-hint {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+.bg-editor-panel {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(0, 229, 255, 0.2);
+    border-radius: 4px;
+    padding: 1rem;
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.bg-canvas-container {
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    background: url('data:image/svg+xml;utf8,<svg width="20" height="20" xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10" fill="%23eee"/><rect x="10" y="10" width="10" height="10" fill="%23eee"/><rect x="10" width="10" height="10" fill="%23ccc"/><rect y="10" width="10" height="10" fill="%23ccc"/></svg>');
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.bg-canvas-container canvas {
+    display: block;
+    max-width: 100%;
+    margin: 0 auto;
+    cursor: crosshair;
+}
+
+.swatch-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 0 2px transparent;
+    transition: box-shadow 0.2s;
+}
+
+.swatch.active {
+    box-shadow: 0 0 0 2px var(--scanner-cyan);
+}
+
+.brush-controls {
+    display: flex;
+    flex-direction: column;
+}
+
+.brush-modes {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.btn-small {
+    background: rgba(255,255,255,0.1);
+    color: var(--cloud-white);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-small.active {
+    background: var(--scanner-cyan);
+    color: var(--deep-space-navy);
+    border-color: var(--scanner-cyan);
+}
+
+.bg-actions {
+    display: flex;
+    justify-content: space-between;
+}
+
+.spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: var(--scanner-cyan);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+

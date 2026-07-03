@@ -101,7 +101,8 @@ const elements = {
         btnRestore: document.getElementById('btnBrushRestore'),
         brushSize: document.getElementById('brushSize'),
         btnCancel: document.getElementById('btnCancelBg'),
-        btnApply: document.getElementById('btnApplyBg')
+        btnApply: document.getElementById('btnApplyBg'),
+        customPicker: document.getElementById('customColorPicker')
     }
 };
 
@@ -594,9 +595,19 @@ if (elements.bgTool.btnToggle) {
         swatch.addEventListener('click', () => {
             elements.bgTool.swatches.forEach(s => s.classList.remove('active'));
             swatch.classList.add('active');
-            bgState.currentColor = swatch.dataset.color;
+            
+            if (swatch.classList.contains('custom-swatch-wrapper')) {
+                bgState.currentColor = elements.bgTool.customPicker.value;
+            } else {
+                bgState.currentColor = swatch.dataset.color;
+            }
             renderBgEditor();
         });
+    });
+
+    elements.bgTool.customPicker.addEventListener('input', (e) => {
+        bgState.currentColor = e.target.value;
+        renderBgEditor();
     });
 
     elements.bgTool.btnCancel.addEventListener('click', () => {

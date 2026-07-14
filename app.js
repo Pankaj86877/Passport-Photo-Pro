@@ -347,6 +347,10 @@ async function processImage(type) {
     const filterCanvas = document.createElement('canvas');
     filterCanvas.width = cropCanvas.width;
     filterCanvas.height = cropCanvas.height;
+    const ctx = filterCanvas.getContext('2d');
+    ctx.filter = `brightness(${bri}%) contrast(${con}%)`;
+    ctx.drawImage(cropCanvas, 0, 0);
+    
     // Apply Background Replacement (if active)
     let finalSourceCanvas = filterCanvas;
     if (bgState.isActive && bgState.finalCompositedCanvas) {

@@ -398,7 +398,15 @@ function compressToTarget(canvas, minKB, maxKB, type) {
         function attempt() {
             if (attempts > maxAttempts) {
                 if (bestBlob && bestBlob.size <= maxBytes) {
-                    resolve(bestBlob);
+                    if (bestBlob.size < minBytes) {
+                        // Image is too small even at max quality, pad it with trailing zeroes
+                        const paddingSize = minBytes - bestBlob.size + 1024; // Pad to min + 1KB
+                        const padding = new Uint8Array(paddingSize);
+                        const paddedBlob = new Blob([bestBlob, padding], { type: 'image/jpeg' });
+                        resolve(paddedBlob);
+                    } else {
+                        resolve(bestBlob);
+                    }
                 } else {
                     reject(new Error("Could not reach target size"));
                 }

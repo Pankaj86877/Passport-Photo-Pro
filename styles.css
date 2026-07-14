@@ -774,3 +774,94 @@ input[type=range]::-webkit-slider-thumb {
     to { transform: rotate(360deg); }
 }
 
+/* --- 3D Marquee Override --- */
+.hero {
+    position: relative;
+}
+
+.photo-marquee-bg {
+    position: absolute;
+    top: -10%;
+    right: -2rem;
+    width: 65%;
+    height: 120%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1.5rem;
+    overflow: hidden;
+    z-index: -1;
+    perspective: 1200px;
+    opacity: 0.6;
+    pointer-events: auto;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 40%), linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0%, black 40%), linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    mask-composite: intersect;
+}
+
+.marquee-column {
+    display: flex;
+    flex-direction: column;
+    width: 140px;
+    transform: rotateY(-15deg) rotateX(10deg);
+    transform-style: preserve-3d;
+}
+
+.marquee-track {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    animation: marquee-scroll var(--scroll-dur, 20s) linear infinite;
+    will-change: transform;
+}
+
+.marquee-column:hover .marquee-track {
+    animation-play-state: paused;
+}
+
+.marquee-card {
+    width: 100%;
+    aspect-ratio: 35 / 45;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5), 0 0 0 1px rgba(0, 229, 255, 0.2);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
+    background: #1a1a1a;
+    cursor: pointer;
+}
+
+.marquee-card:hover {
+    transform: scale(1.08) translateZ(30px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.7), 0 0 0 2px var(--scanner-cyan);
+    position: relative;
+    z-index: 10;
+}
+
+@keyframes marquee-scroll {
+    0% { transform: translateY(var(--start-offset, 0)); }
+    100% { transform: translateY(var(--end-offset, -50%)); }
+}
+
+@media (max-width: 900px) {
+    .tablet-hide { display: none !important; }
+    .photo-marquee-bg {
+        width: 100%;
+        right: 0;
+        opacity: 0.3;
+        -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+        mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    }
+}
+
+@media (max-width: 600px) {
+    .mobile-hide { display: none !important; }
+    .photo-marquee-bg {
+        perspective: none;
+        opacity: 0.15;
+    }
+    .marquee-column {
+        transform: none;
+        width: 120px;
+    }
+}
+

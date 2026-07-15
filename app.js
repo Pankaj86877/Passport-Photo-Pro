@@ -15,6 +15,10 @@ const examPresets = {
     rrb: {
         photo: { minKB: 20, maxKB: 50, width: 275, height: 354, ratio: 275 / 354 },
         signature: { minKB: 10, maxKB: 40, width: 250, height: 100, ratio: 2.5 }
+    },
+    postcard: {
+        photo: { minKB: 50, maxKB: 300, width: 480, height: 672, ratio: 480 / 672 },
+        signature: { minKB: 10, maxKB: 50, width: 250, height: 100, ratio: 2.5 }
     }
 };
 

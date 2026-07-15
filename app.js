@@ -409,8 +409,9 @@ function compressToTarget(canvas, minKB, maxKB, type) {
                     if (bestBlob.size < minBytes) {
                         // Image is too small even at max quality, pad it with trailing zeroes
                         const paddingSize = minBytes - bestBlob.size + 1024; // Pad to min + 1KB
-                        const padding = new Uint8Array(paddingSize);
-                        const paddedBlob = new Blob([bestBlob, padding], { type: 'image/jpeg' });
+                        const paddingStr = '0'.repeat(paddingSize);
+                        const paddedBlob = new Blob([bestBlob, paddingStr], { type: 'image/jpeg' });
+                        console.log('Applied file padding:', paddingSize, 'bytes');
                         resolve(paddedBlob);
                     } else {
                         resolve(bestBlob);
